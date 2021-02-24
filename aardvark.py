@@ -69,6 +69,33 @@ class Aardvark:
                     r = re.compile(bytes(req, encoding="utf-8"), flags=re.IGNORECASE)
                     self.multispam_auxiliary.add(r)
 
+    def scan(self, request_url, post_data):
+        """Scans post data for spam"""
+        bad_items = []
+
+        # Check for honey pot URLs
+        for su in self.spamurls:
+            if su.match(request_url):
+                bad_items.append(f"Request URL '{request_url}' matches honey pot URL '{su.pattern}'")
+
+        # Standard POST data simple matches
+        for pm in self.postmatches:
+            if pm.search(post_data):
+                bad_items.append("Found offending match in POST data: " + str(pm.pattern, encoding="utf-8"))
+
+        # Multimatch check where one _required_ match is needed, PLUS one or more _auxiliary_ matches.
+        # Thus, "phone support" does not match, but "for phone support, call 1-234-453-2383" will.
+        for req in self.multispam_required:
+            if req.search(post_data):
+                for aux in self.multispam_auxiliary:
+                    if aux.search(post_data):
+                        bad_items.append(
+                            f"Found multi-match in POST data: '%s' + '%s'"
+                            % (str(req.pattern, encoding="utf-8"), str(aux.pattern, encoding="utf-8"))
+                        )
+
+        return bad_items
+
     async def proxy(self, request):
         """Handles each proxy request"""
         request_url = "/" + request.match_info["path"]
@@ -106,35 +133,15 @@ class Aardvark:
         # Check if offender is in out registry already
         if remote_ip in self.offenders:
             bad_items.append("Client is on the list of bad offenders.")
-
-        # Check for honey pot URLs
-        for su in self.spamurls:
-            if su.match(request_url):
-                bad_items.append(f"Request URL '{request_url}' matches honey pot URL '{su.pattern}'")
-
-        # Standard POST data simple matches
-        for pm in self.postmatches:
-            if pm.search(post_data):
-                bad_items.append("Found offending match in POST data: " + str(pm.pattern, encoding="utf-8"))
-
-        # Multimatch check where one _required_ match is needed, PLUS one or more _auxiliary_ matches.
-        # Thus, "phone support" does not match, but "for phone support, call 1-234-453-2383" will.
-        for req in self.multispam_required:
-            if req.search(post_data):
-                for aux in self.multispam_auxiliary:
-                    if aux.search(post_data):
-                        bad_items.append(
-                            f"Found multi-match in POST data: '%s' + '%s'"
-                            % (str(req.pattern, encoding="utf-8"), str(aux.pattern, encoding="utf-8"))
-                        )
-
-        #  If this URL is actually to be ignored, forget all we just did!
-        if bad_items:
-            for iu in self.ignoreurls:
-                if iu in request_url:
-                    print(f"Spam was detected from {remote_ip} but URL '{request_url} is on ignore list, so...")
-                    bad_items = []
-                    break
+        else:
+            bad_items = self.scan(request_url, post_data)
+            #  If this URL is actually to be ignored, forget all we just did!
+            if bad_items:
+                for iu in self.ignoreurls:
+                    if iu in request_url:
+                        print(f"Spam was detected from {remote_ip} but URL '{request_url} is on ignore list, so...")
+                        bad_items = []
+                        break
 
         if bad_items:
             print(f"Request from {remote_ip} to '{request_url}' contains possible spam:")
