@@ -32,15 +32,10 @@ go directly to the backend service.
 Assuming Aardvark is listening on port `4321` and the real backend service is on port `8080`:
 
 ~~~apache
-<Location /foo/bar/>
-    # Send all POST requests through Aardvark
-    <Limit POST>
-        # ProxyPass to Aardvark. Remember that because of <Location ...> the ProxyPass directive is altered.
-        ProxyPass http://localhost:4321/foo/bar/
-    </Limit>
-    # Send all non-POST requests directly to backend
-    <LimitExcept POST>
-        ProxyPass http://localhost:8080/foo/bar/
-    </LimitExcept>
-</Location>
+# Send all POST requests through Aardvark
+RewriteEngine On
+RewriteCond %{REQUEST_METHOD} POST
+RewriteRule ^/(.*)$ http://localhost:4321/$1 [P]
+# Rest goes to backend directly
+ProxyPass / http://localhost:8080/foo/bar/
 ~~~
