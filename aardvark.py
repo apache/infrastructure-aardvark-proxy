@@ -36,7 +36,7 @@ class Aardvark:
     multispam_auxiliary = []                    # Auxiliary Multi-Match strings
     offenders = []                              # List of already known offenders (block right out!)
 
-    def init(self, config_file="aardvark.yaml"):
+    def __init__(self, config_file="aardvark.yaml"):
         """ Load and parse the config """
         if config_file:
             self.config = yaml.safe_load(open(config_file, "r"))
@@ -154,7 +154,6 @@ class Aardvark:
 
 async def main():
     A = Aardvark()
-    A.init()
     app = aiohttp.web.Application()
     app.router.add_route("*", "/{path:.*?}", A.proxy)
     runner = aiohttp.web.AppRunner(app)
