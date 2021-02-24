@@ -10,7 +10,7 @@ Aardvark is written in Python3 and uses [aiohttp](https://github.com/aio-libs/ai
 
 ## Settings:
 
-- `port`: Which port to listen on for scans. For security purposes, Aardvark will only bind to localhost. Default is [1729](https://en.wikipedia.org/wiki/1729_(number))
+- `port`: Which port to listen on for scans. For security reasons, Aardvark will bind to localhost. Default is [1729](https://en.wikipedia.org/wiki/1729_(number))
 - `proxy_url`: The backend service to proxy to if request is sane
 - `ipheader`: The header to look for the client's IP in. Typically X-Forwarded-For.
 - `spamurls`: Specific honey-pot URLs that trigger a block regardless of the action
