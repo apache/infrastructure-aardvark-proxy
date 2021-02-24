@@ -22,23 +22,32 @@ import yaml
 import time
 import re
 
+
+# Some defaults to keep this running without a yaml
+DEFAULT_PORT = 4321
+DEFAULT_BACKEND = "http://localhost:8080"
+DEFAULT_IPHEADER = "x-forwarded-for"
+
+
 class Aardvark:
-    config = {}                                 # Our config, unless otherwise specified in init
-    proxy_url = "http://localhost:8000"         # Backend URL to proxy to
-    port = 8080                                 # Port we listen on
-    ipheader = "x-forwarded-for"                # Standard IP forward header
-    last_batches = []                           # Last batches of requests for stats
-    scan_times = []                             # Scan times for stats
-    processing_times = []                       # Request proxy processing times for stats
-    postmatches = []                            # SPAM POST data simple matches
-    spamurls = []                               # Honey pot URLs
-    ignoreurls = []                             # URLs we should not scan
-    multispam_required = []                     # Multi-Match required matches
-    multispam_auxiliary = []                    # Auxiliary Multi-Match strings
-    offenders = []                              # List of already known offenders (block right out!)
 
     def __init__(self, config_file="aardvark.yaml"):
         """ Load and parse the config """
+
+        self.config = {}  # Our config, unless otherwise specified in init
+        self.proxy_url = DEFAULT_BACKEND  # Backend URL to proxy to
+        self.port = DEFAULT_PORT  # Port we listen on
+        self.ipheader = DEFAULT_IPHEADER  # Standard IP forward header
+        self.last_batches = []  # Last batches of requests for stats
+        self.scan_times = []  # Scan times for stats
+        self.processing_times = []  # Request proxy processing times for stats
+        self.postmatches = set()  # SPAM POST data simple matches
+        self.spamurls = set()  # Honey pot URLs
+        self.ignoreurls = set()  # URLs we should not scan
+        self.multispam_required = set()  # Multi-Match required matches
+        self.multispam_auxiliary = set()  # Auxiliary Multi-Match strings
+        self.offenders = set()  # List of already known offenders (block right out!)
+
         if config_file:
             self.config = yaml.safe_load(open(config_file, "r"))
             self.proxy_url = self.config.get("proxy_url", self.proxy_url)
@@ -46,19 +55,19 @@ class Aardvark:
             self.ipheader = self.config.get("ipheader", self.ipheader)
             for pm in self.config.get("postmatches", []):
                 r = re.compile(bytes(pm, encoding="utf-8"), flags=re.IGNORECASE)
-                self.postmatches.append(r)
+                self.postmatches.add(r)
             for su in self.config.get("spamurls", []):
                 r = re.compile(su, flags=re.IGNORECASE)
-                self.spamurls.append(r)
+                self.spamurls.add(r)
             self.ignoreurls = self.config.get("ignoreurls", [])
             multimatch = self.config.get("multimatch", {})
             if multimatch:
                 for req in multimatch.get("required", []):
                     r = re.compile(bytes(req, encoding="utf-8"), flags=re.IGNORECASE)
-                    self.multispam_required.append(r)
+                    self.multispam_required.add(r)
                 for req in multimatch.get("auxiliary", []):
                     r = re.compile(bytes(req, encoding="utf-8"), flags=re.IGNORECASE)
-                    self.multispam_auxiliary.append(r)
+                    self.multispam_auxiliary.add(r)
 
     async def proxy(self, request):
         """Handles each proxy request"""
@@ -137,8 +146,7 @@ class Aardvark:
 
         # If bad items were found, don't proxy, return empty response
         if bad_items:
-            if remote_ip not in self.offenders:
-                self.offenders.append(remote_ip)
+            self.offenders.add(remote_ip)
             self.processing_times.append(time.time() - now)
             return None
 
