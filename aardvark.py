@@ -22,40 +22,41 @@ import yaml
 import time
 import re
 
-YAML_CONFIG = "aardvark.yaml"
-
-
 class Aardvark:
-    config = yaml.safe_load(open(YAML_CONFIG, "r"))
-    proxy_url = config.get("proxy_url", "http://localhost:8000/")   # Backend URL to proxy to
-    port = config.get("port", 8080)                                 # Port we listen on
-    last_batches = []                                               # Last batches of requests for stats
-    scan_times = []                                                 # Scan times for stats
-    processing_times = []                                           # Request proxy processing times for stats
-    postmatches = []                                                # SPAM POST data simple matches
-    spamurls = []                                                   # Honey pot URLs
-    ignoreurls = []                                                 # URLs we should not scan
-    multispam_required = []                                         # Multi-Match required matches
-    multispam_auxiliary = []                                        # Auxiliary Multi-Match strings
-    offenders = []                                                  # List of already known offenders (block right out!)
+    config = {}                                 # Our config, unless otherwise specified in init
+    proxy_url = "http://localhost:8000"         # Backend URL to proxy to
+    port = 8080                                 # Port we listen on
+    last_batches = []                           # Last batches of requests for stats
+    scan_times = []                             # Scan times for stats
+    processing_times = []                       # Request proxy processing times for stats
+    postmatches = []                            # SPAM POST data simple matches
+    spamurls = []                               # Honey pot URLs
+    ignoreurls = []                             # URLs we should not scan
+    multispam_required = []                     # Multi-Match required matches
+    multispam_auxiliary = []                    # Auxiliary Multi-Match strings
+    offenders = []                              # List of already known offenders (block right out!)
 
-    def init(self):
+    def init(self, config_file="aardvark.yaml"):
         """ Load and parse the config """
-        for pm in self.config.get("postmatches", []):
-            r = re.compile(bytes(pm, encoding="utf-8"), flags=re.IGNORECASE)
-            self.postmatches.append(r)
-        for su in self.config.get("spamurls", []):
-            r = re.compile(su, flags=re.IGNORECASE)
-            self.spamurls.append(r)
-        self.ignoreurls = self.config.get("ignoreurls", [])
-        multimatch = self.config.get("multimatch", {})
-        if multimatch:
-            for req in multimatch.get("required", []):
-                r = re.compile(bytes(req, encoding="utf-8"), flags=re.IGNORECASE)
-                self.multispam_required.append(r)
-            for req in multimatch.get("auxiliary", []):
-                r = re.compile(bytes(req, encoding="utf-8"), flags=re.IGNORECASE)
-                self.multispam_auxiliary.append(r)
+        if config_file:
+            self.config = yaml.safe_load(open(config_file, "r"))
+            self.proxy_url = self.config.get("proxy_url", self.proxy_url)
+            self.port = int(self.config.get('port', self.port))
+            for pm in self.config.get("postmatches", []):
+                r = re.compile(bytes(pm, encoding="utf-8"), flags=re.IGNORECASE)
+                self.postmatches.append(r)
+            for su in self.config.get("spamurls", []):
+                r = re.compile(su, flags=re.IGNORECASE)
+                self.spamurls.append(r)
+            self.ignoreurls = self.config.get("ignoreurls", [])
+            multimatch = self.config.get("multimatch", {})
+            if multimatch:
+                for req in multimatch.get("required", []):
+                    r = re.compile(bytes(req, encoding="utf-8"), flags=re.IGNORECASE)
+                    self.multispam_required.append(r)
+                for req in multimatch.get("auxiliary", []):
+                    r = re.compile(bytes(req, encoding="utf-8"), flags=re.IGNORECASE)
+                    self.multispam_auxiliary.append(r)
 
     async def proxy(self, request):
         """Handles each proxy request"""
