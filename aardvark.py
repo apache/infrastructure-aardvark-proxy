@@ -169,8 +169,12 @@ class Aardvark:
                 ) as resp:
                     result = resp
                     raw = await result.read()
+                    headers = result.headers.copy()
+                    # We do NOT want chunked T-E! Leave it to aiohttp
+                    if 'Transfer-Encoding' in headers:
+                        del headers['Transfer-Encoding']
                     self.processing_times.append(time.time() - now)
-                    return aiohttp.web.Response(body=raw, status=result.status, headers=result.headers)
+                    return aiohttp.web.Response(body=raw, status=result.status, headers=headers)
             except aiohttp.client_exceptions.ClientConnectorError as e:
                 print("Could not connect to backend: " + str(e))
                 self.processing_times.append(time.time() - now)
