@@ -1,0 +1,11 @@
+[Unit]
+Description=Aardvark Proxy Middleman
+ 
+[Service]
+Type=simple
+WorkingDirectory=/opt/aardvark-proxy
+ExecStart=/usr/local/bin/pipenv run python3 aardvark.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
