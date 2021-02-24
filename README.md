@@ -40,13 +40,13 @@ As Aardvark is a proxy middleman for specific purposes, you will preferably need
 The example below relays all POST requests for /foo/bar through Aardvark, while letting all GETs etc 
 go directly to the backend service.
 
-Assuming Aardvark is listening on port `4321` and the real backend service is on port `8080`:
+Assuming Aardvark is listening on port `1729` and the real backend service is on port `8080`:
 
 ~~~apache
 # Send all POST requests through Aardvark
 RewriteEngine On
 RewriteCond %{REQUEST_METHOD} POST
-RewriteRule ^/(.*)$ http://localhost:4321/$1 [P]
+RewriteRule ^/(.*)$ http://localhost:1729/$1 [P]
 # Rest goes to backend directly
 ProxyPass / http://localhost:8080/foo/bar/
 ~~~
