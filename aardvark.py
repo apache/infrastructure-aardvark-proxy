@@ -179,7 +179,7 @@ async def main():
     runner = aiohttp.web.AppRunner(app)
 
     await runner.setup()
-    site = aiohttp.web.TCPSite(runner, "localhost", 8080)
+    site = aiohttp.web.TCPSite(runner, "localhost", A.port)
     print("Starting Aardvark Anti Spam Proxy")
     await site.start()
     print(f"Started on port {A.port}")
