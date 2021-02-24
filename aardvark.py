@@ -155,11 +155,12 @@ class Aardvark:
         # Done with scan, log how long that took
         self.scan_times.append(time.time() - now)
 
+
         # If bad items were found, don't proxy, return empty response
         if bad_items:
             self.offenders.add(remote_ip)
             self.processing_times.append(time.time() - now)
-            return None
+            return aiohttp.web.Response(text="No cookie!", status=403)
 
         async with aiohttp.ClientSession() as session:
             try:
@@ -168,13 +169,14 @@ class Aardvark:
                 ) as resp:
                     result = resp
                     raw = await result.read()
+                    self.processing_times.append(time.time() - now)
+                    return aiohttp.web.Response(body=raw, status=result.status, headers=result.headers)
             except aiohttp.client_exceptions.ClientConnectorError as e:
                 print("Could not connect to backend: " + str(e))
                 self.processing_times.append(time.time() - now)
-                return None
 
         self.processing_times.append(time.time() - now)
-        return aiohttp.web.Response(body=raw, status=result.status, headers=result.headers)
+        return aiohttp.web.Response(text="No cookie!", status=403)
 
 async def main():
     A = Aardvark()
