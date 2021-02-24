@@ -163,7 +163,7 @@ async def main():
     site = aiohttp.web.TCPSite(runner, "localhost", 8080)
     print("Starting Aardvark Anti Spam Proxy")
     await site.start()
-    print("Started on port 8080")
+    print(f"Started on port {A.port}")
     while True:
         await asyncio.sleep(60)
 
