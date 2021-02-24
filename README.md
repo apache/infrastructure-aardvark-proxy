@@ -2,13 +2,16 @@
 Aardvark Proxy Middleman
 
 This service acts as a middleman between frontend web servers and ticket submission services such as JIRA or BugZilla, and intercepts all data sent.
-Data is scanned for known offending words that are common in spam, and blocks the request if such are found.
+POST Data is scanned for known offending words that are common in spam, and if found to be spam, the request is blocked.
+Aardvark keeps an internal list of offending IPs, and will block any subsequent POST requests from those IPs (until restarted).
 
 ![diagram](aardvark.png)
 
 ## Settings:
 
+- `port`: Which port to listen on for scans. For security purposes, Aardvark will only bind to localhost. Default is [1729](https://en.wikipedia.org/wiki/1729_(number))
 - `proxy_url`: The backend service to proxy to if request is sane
+- `ipheader`: The header to look for the client's IP in. Typically X-Forwarded-For.
 - `spamurls`: Specific honey-pot URLs that trigger a block regardless of the action
 - `ignoreurls`: Specific URLs that are exempt from spam detection
 - `postmatches`: A list of keywords and/or regexes that, if matched, will block the request
