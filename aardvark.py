@@ -34,6 +34,7 @@ class Aardvark:
     processing_times = []                                           # Request proxy processing times for stats
     postmatches = []                                                # SPAM POST data simple matches
     spamurls = []                                                   # Honey pot URLs
+    ignoreurls = []                                                 # URLs we should not scan
     multispam_required = []                                         # Multi-Match required matches
     multispam_auxiliary = []                                        # Auxiliary Multi-Match strings
     offenders = []                                                  # List of already known offenders (block right out!)
@@ -46,6 +47,7 @@ class Aardvark:
         for su in self.config.get("spamurls", []):
             r = re.compile(su, flags=re.IGNORECASE)
             self.spamurls.append(r)
+        self.ignoreurls = self.config.get("ignoreurls", [])
         multimatch = self.config.get("multimatch", {})
         if multimatch:
             for req in multimatch.get("required", []):
@@ -109,6 +111,14 @@ class Aardvark:
                             f"Found multi-match in POST data: '%s' + '%s'"
                             % (str(req.pattern, encoding="utf-8"), str(aux.pattern, encoding="utf-8"))
                         )
+
+        #  If this URL is actually to be ignored, forget all we just did!
+        if bad_items:
+            for iu in self.ignoreurls:
+                if iu in request_url:
+                    print(f"Spam was detected from {request.remote} but URL '{request_url} is on ignore list, so...")
+                    bad_items = []
+                    break
 
         if bad_items:
             print(f"Request from {request.remote} to '{request_url}' contains possible spam:")
