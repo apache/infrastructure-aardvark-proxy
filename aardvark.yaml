@@ -46,6 +46,8 @@ postmatches:
     - "eventeca"
     - "ngaydem"
     - "moneyprinters"
+    - "free[- ]watch.+?listen"
+    - "https://tvvslivenba.co/"
 
 # Match multiple of these to ban
 multimatch:
