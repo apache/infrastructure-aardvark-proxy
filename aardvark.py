@@ -36,6 +36,7 @@ class Aardvark:
     spamurls = []                                                   # Honey pot URLs
     multispam_required = []                                         # Multi-Match required matches
     multispam_auxiliary = []                                        # Auxiliary Multi-Match strings
+    offenders = []                                                  # List of already known offenders (block right out!)
 
     def init(self):
         """ Load and parse the config """
@@ -84,6 +85,10 @@ class Aardvark:
         # Perform scan!
         bad_items = []
 
+        # Check if offender is in out registry already
+        if request.remote in self.offenders:
+            bad_items.append("Client is in the list of bad offenders.")
+
         # Check for honey pot URLs
         for su in self.spamurls:
             if su.match(request_url):
@@ -115,6 +120,8 @@ class Aardvark:
 
         # If bad items were found, don't proxy, return empty response
         if bad_items:
+            if request.remote not in self.offenders:
+                self.offenders.append(request.remote)
             self.processing_times.append(time.time() - now)
             return None
 
