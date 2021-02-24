@@ -1,0 +1,51 @@
+# Which backend to proxy to if request is kosher
+proxy_url: "http://localhost:8009/"
+
+
+#####################
+# Aardvark rule-set #
+#####################
+
+# These automatically cause a ban
+spamurls:
+    - "/jira/rest/api/.+/issue/AAR-\\d+/comment"
+
+# Don't run spam check here...
+ignoreurls:
+    - "AttachTemporaryFile"
+
+# Match any of these to banninate
+postmatches:
+    - "mobilestrikehacktools"
+    - "monsterlegendshackx"
+    - "router customer service"
+    - "router customer support"
+    - "customer service number"
+    - "customer care phone"
+    - "\\b(https?[:/%32AF]*\\S*essay\\S*)\\b"
+    - "escorts"
+    - "solitairetimes"
+    - "myspades"
+    - "myeuchre"
+    - "ringtone"
+    - "keywords INNER JOIN keyworddefs ON keywords.keywordid"
+    - "\\b(https?[:/%32AF]*\\S*resume\\S*)\\b"
+    - "\\b(https?[:/%32AF]*\\S*800support\\S*)\\b"
+    - "drzafarsaifi"
+    - "\\b(https?[:/%32AF]*\\S*dissertation\\S*)\\b"
+    - "\\b(https?[:/%32AF]*\\S*assignment\\S*)\\b"
+    - "assignmenthelp"
+    - "paperwriting"
+    - "bestdiss"
+    - "besttempmail"
+    - "eventeca"
+    - "ngaydem"
+    - "moneyprinters"
+
+# Match multiple of these to ban
+multimatch:
+    auxiliary:
+        - "p.?h.?o.?n.?e"
+        - "s.?u.?p.?p.?o.?r.?t"
+    required:
+        - "(1[-.\\s]+\\d\\d\\d[-.\\s]+\\d\\d\\d[-.\\s]+\\d\\d\\d\\d)"
