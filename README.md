@@ -27,6 +27,14 @@ pipservice:
     tag: main
 ~~~
 
+## Running manually
+Follow these steps to run manually (assuming you have [pipenv](https://pypi.org/project/pipenv/) installed):
+
+- `git clone https://github.com/apache/infrastructure-aardvark-proxy.git aardvark-proxy`
+- `cd aardvark-proxy`
+- `pipenv install -r requirements.txt`
+- `pipenv run python3 aardvark.py`
+
 ## HTTPd configuration example
 As Aardvark is a proxy middleman for specific purposes, you will preferably need a web server in front.
 The example below relays all POST requests for /foo/bar through Aardvark, while letting all GETs etc 
