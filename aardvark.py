@@ -89,7 +89,7 @@ class Aardvark:
 
         # Check if offender is in out registry already
         if request.remote in self.offenders:
-            bad_items.append("Client is in the list of bad offenders.")
+            bad_items.append("Client is on the list of bad offenders.")
 
         # Check for honey pot URLs
         for su in self.spamurls:
