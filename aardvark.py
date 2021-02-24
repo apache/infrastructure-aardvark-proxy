@@ -21,6 +21,10 @@ import urllib.parse
 import yaml
 import time
 import re
+import asfpy.syslog
+
+# Shadow print with out syslog wrapper
+print = asfpy.syslog.Printer(stdout=True, identity='aardvark')
 
 
 # Some defaults to keep this running without a yaml
