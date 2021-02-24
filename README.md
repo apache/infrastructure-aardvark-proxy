@@ -23,3 +23,24 @@ pipservice:
   aardvark-proxy:
     tag: main
 ~~~
+
+## HTTPd configuration example
+As Aardvark is a proxy middleman for specific purposes, you will preferably need a web server in front.
+The example below relays all POST requests for /foo/bar through Aardvark, while letting all GETs etc 
+go directly to the backend service.
+
+Assuming Aardvark is listening on port `4321` and the real backend service is on port `8080`:
+
+~~~apache
+<Location /foo/bar/>
+    # Send all POST requests through Aardvark
+    <Limit POST>
+        # ProxyPass to Aardvark. Remember that because of <Location ...> the ProxyPass directive is altered.
+        ProxyPass http://localhost:4321/foo/bar/
+    </Limit>
+    # Send all non-POST requests directly to backend
+    <LimitExcept POST>
+        ProxyPass http://localhost:8080/foo/bar/
+    </LimitExcept>
+</Location>
+~~~
