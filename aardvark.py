@@ -26,6 +26,7 @@ class Aardvark:
     config = {}                                 # Our config, unless otherwise specified in init
     proxy_url = "http://localhost:8000"         # Backend URL to proxy to
     port = 8080                                 # Port we listen on
+    ipheader = "x-forwarded-for"                # Standard IP forward header
     last_batches = []                           # Last batches of requests for stats
     scan_times = []                             # Scan times for stats
     processing_times = []                       # Request proxy processing times for stats
@@ -42,6 +43,7 @@ class Aardvark:
             self.config = yaml.safe_load(open(config_file, "r"))
             self.proxy_url = self.config.get("proxy_url", self.proxy_url)
             self.port = int(self.config.get('port', self.port))
+            self.ipheader = self.config.get("ipheader", self.ipheader)
             for pm in self.config.get("postmatches", []):
                 r = re.compile(bytes(pm, encoding="utf-8"), flags=re.IGNORECASE)
                 self.postmatches.append(r)
@@ -63,7 +65,11 @@ class Aardvark:
         request_url = "/" + request.match_info["path"]
         now = time.time()
         target_url = urllib.parse.urljoin(self.proxy_url, request_url)
-        # print(f"Proxying request to {target_url}...")  # Tooooo spammy, keep it clean
+        if self.ipheader:
+            remote_ip = request.headers.get(self.ipheader, request.remote)
+        else:
+            remote_ip = request.remote
+        #  print(f"Proxying request to {target_url}...")  # Tooooo spammy, keep it clean
 
         # Debug output for syslog
         self.last_batches.append(time.time())
@@ -89,7 +95,7 @@ class Aardvark:
         bad_items = []
 
         # Check if offender is in out registry already
-        if request.remote in self.offenders:
+        if remote_ip in self.offenders:
             bad_items.append("Client is on the list of bad offenders.")
 
         # Check for honey pot URLs
@@ -117,22 +123,22 @@ class Aardvark:
         if bad_items:
             for iu in self.ignoreurls:
                 if iu in request_url:
-                    print(f"Spam was detected from {request.remote} but URL '{request_url} is on ignore list, so...")
+                    print(f"Spam was detected from {remote_ip} but URL '{request_url} is on ignore list, so...")
                     bad_items = []
                     break
 
         if bad_items:
-            print(f"Request from {request.remote} to '{request_url}' contains possible spam:")
+            print(f"Request from {remote_ip} to '{request_url}' contains possible spam:")
             for item in bad_items:
-                print(f"[{request.remote}]: {item}")
+                print(f"[{remote_ip}]: {item}")
 
         # Done with scan, log how long that took
         self.scan_times.append(time.time() - now)
 
         # If bad items were found, don't proxy, return empty response
         if bad_items:
-            if request.remote not in self.offenders:
-                self.offenders.append(request.remote)
+            if remote_ip not in self.offenders:
+                self.offenders.append(remote_ip)
             self.processing_times.append(time.time() - now)
             return None
 
@@ -150,7 +156,6 @@ class Aardvark:
 
         self.processing_times.append(time.time() - now)
         return aiohttp.web.Response(body=raw, status=result.status, headers=result.headers)
-
 
 async def main():
     A = Aardvark()
