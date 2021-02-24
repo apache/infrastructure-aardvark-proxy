@@ -4,6 +4,8 @@ Aardvark Proxy Middleman
 This service acts as a middleman between frontend web servers and ticket submission services such as JIRA or BugZilla, and intercepts all data sent.
 Data is scanned for known offending words that are common in spam, and blocks the request if such are found.
 
+![diagram](aardvark.png)
+
 ## Settings:
 
 - `proxy_url`: The backend service to proxy to if request is sane
