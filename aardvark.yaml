@@ -1,5 +1,5 @@
 # Port for Aardvark to listen on
-port: 4321
+port: 1729
 
 # Which backend to proxy to if request is kosher
 proxy_url: "http://localhost:8080/"
