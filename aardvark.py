@@ -111,7 +111,7 @@ class Aardvark:
                         )
 
         if bad_items:
-            print(f"Request from {request.remote} contains possible spam:")
+            print(f"Request from {request.remote} to '{request_url}' contains possible spam:")
             for item in bad_items:
                 print(f"[{request.remote}]: {item}")
 
