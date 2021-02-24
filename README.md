@@ -1,9 +1,10 @@
-# infrastructure-aardvark-proxy
-Aardvark Proxy Middleman
+# Aardvark - An anti-spam proxy server
 
-This service acts as a middleman between frontend web servers and ticket submission services such as JIRA or BugZilla, and intercepts all data sent.
+Aardvark acts as a middleman between frontend web servers and (typically) ticket submission services such as JIRA or BugZilla, and intercepts all data sent.
 POST Data is scanned for known offending words that are common in spam, and if found to be spam, the request is blocked.
 Aardvark keeps an internal list of offending IPs, and will block any subsequent POST requests from those IPs (until restarted).
+
+Aardvark is written in Python3 and uses [aiohttp](https://github.com/aio-libs/aiohttp) for its server/client capabilities.
 
 ![diagram](aardvark.png)
 
