@@ -19,6 +19,14 @@ Aardvark is written in Python3 and uses [aiohttp](https://github.com/aio-libs/ai
 - `postmatches`: A list of keywords and/or regexes that, if matched, will block the request
 - `multimatch`: A combination blocker. If a `required` keyword or regex is matched, the request will be blocked only if one or more `auxiliary` keywords/regexes are also matched
 
+## Naïve Spam Scan
+Aardvark contains a very naïve spam scanner in `spamfilter.py` that uses a very simplified Bayes-esque formula for
+determining whether something is spam. It is enabled for form data only, and can be disabled entirely by 
+setting `enable_naive_scan` to `false`. It has a built-in corpus with ham and spam in English, and works...sometimes :)
+
+It is very much a work in progress, but should be safe to have enabled.
+
+
 ## Pipservicing
 
 To enable as a pipservice, add the following minimal hiera yaml to your node config:
