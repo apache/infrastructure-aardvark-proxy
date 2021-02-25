@@ -22,16 +22,9 @@ import json
 
 MINIMUM_NUMBER_OF_WORDS = 6  # We need at least SOME words to safely classify this
 
-nltk.download("stopwords")
-nltk.download("punkt")
 
 class BayesScanner:
     """ A very naïve spam scanner """
-
-    stopwords = nltk.corpus.stopwords.words("english")
-    punctuation = string.punctuation
-    ham_words: typing.List[str] = []
-    spam_words: typing.List[str] = []
 
     def reload_spamdb(self):
         """ This is how corpus/spamdb.json was built..."""
@@ -60,6 +53,14 @@ class BayesScanner:
             f.close()
 
     def __init__(self):
+        self.punctuation = string.punctuation
+        self.ham_words: typing.List[str] = []
+        self.spam_words: typing.List[str] = []
+
+        nltk.download("stopwords")
+        nltk.download("punkt")
+        self.stopwords = nltk.corpus.stopwords.words("english")
+
         spamdb = json.load(open("corpus/spamdb.json"))
         self.spam_words = spamdb["spam"]
         self.ham_words = spamdb["ham"]
@@ -96,7 +97,7 @@ class BayesScanner:
 
     def scan_text(self, text: str):
         text_processed = self.tokenify(text)
-        if len(text_processed) >= MINIMUM_NUMBER_OF_WORDS:
+        if len(text_processed) > MINIMUM_NUMBER_OF_WORDS:
             h, s = self.count_words(text_processed)
             result = self.naive_result(h, s)
         else:
