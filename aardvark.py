@@ -224,7 +224,7 @@ class Aardvark:
                     target_url,
                     headers=req_headers,
                     params=get_data,
-                    data=post_data or post_dict,
+                    data=post_dict or post_data,
                     timeout=30,
                 ) as resp:
                     result = resp
