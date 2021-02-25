@@ -17,11 +17,13 @@
 import asyncio
 import aiohttp
 import aiohttp.web
+import aiohttp.client_exceptions
 import urllib.parse
 import yaml
 import time
 import re
 import asfpy.syslog
+import typing
 
 # Shadow print with out syslog wrapper
 print = asfpy.syslog.Printer(stdout=True, identity='aardvark')
@@ -35,9 +37,20 @@ DEFAULT_IPHEADER = "x-forwarded-for"
 
 class Aardvark:
 
-    def __init__(self, config_file="aardvark.yaml"):
+    def __init__(self, config_file: str = "aardvark.yaml"):
         """ Load and parse the config """
 
+        # Type checking hints for mypy
+        self.scan_times: typing.List[float]
+        self.last_batches: typing.List[float]
+        self.processing_times: typing.List[float]
+        self.offenders: typing.Set[str]
+        self.spamurls: typing.Set[re.Pattern]
+        self.postmatches: typing.Set[re.Pattern]
+        self.multispam_auxiliary: typing.Set[re.Pattern]
+        self.multispam_required: typing.Set[re.Pattern]
+
+        # Init vars with defaults
         self.config = {}  # Our config, unless otherwise specified in init
         self.proxy_url = DEFAULT_BACKEND  # Backend URL to proxy to
         self.port = DEFAULT_PORT  # Port we listen on
@@ -52,6 +65,7 @@ class Aardvark:
         self.multispam_auxiliary = set()  # Auxiliary Multi-Match strings
         self.offenders = set()  # List of already known offenders (block right out!)
 
+        # If config file, load that into the vars
         if config_file:
             self.config = yaml.safe_load(open(config_file, "r"))
             self.proxy_url = self.config.get("proxy_url", self.proxy_url)
@@ -73,7 +87,7 @@ class Aardvark:
                     r = re.compile(bytes(req, encoding="utf-8"), flags=re.IGNORECASE)
                     self.multispam_auxiliary.add(r)
 
-    def scan(self, request_url, post_data):
+    def scan(self, request_url: str, post_data: bytes):
         """Scans post data for spam"""
         bad_items = []
 
@@ -100,7 +114,7 @@ class Aardvark:
 
         return bad_items
 
-    async def proxy(self, request):
+    async def proxy(self, request: aiohttp.web.Request):
         """Handles each proxy request"""
         request_url = "/" + request.match_info["path"]
         now = time.time()
@@ -155,7 +169,6 @@ class Aardvark:
         # Done with scan, log how long that took
         self.scan_times.append(time.time() - now)
 
-
         # If bad items were found, don't proxy, return empty response
         if bad_items:
             self.offenders.add(remote_ip)
@@ -182,17 +195,18 @@ class Aardvark:
         self.processing_times.append(time.time() - now)
         return aiohttp.web.Response(text="No cookie!", status=403)
 
+
 async def main():
-    A = Aardvark()
+    aar = Aardvark()
     app = aiohttp.web.Application()
-    app.router.add_route("*", "/{path:.*?}", A.proxy)
+    app.router.add_route("*", "/{path:.*?}", aar.proxy)
     runner = aiohttp.web.AppRunner(app)
 
     await runner.setup()
-    site = aiohttp.web.TCPSite(runner, "localhost", A.port)
+    site = aiohttp.web.TCPSite(runner, "localhost", aar.port)
     print("Starting Aardvark Anti Spam Proxy")
     await site.start()
-    print(f"Started on port {A.port}")
+    print(f"Started on port {aar.port}")
     while True:
         await asyncio.sleep(60)
 
