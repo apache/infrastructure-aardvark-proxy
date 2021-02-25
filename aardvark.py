@@ -36,6 +36,7 @@ DEFAULT_PORT = 4321
 DEFAULT_BACKEND = "http://localhost:8080"
 DEFAULT_IPHEADER = "x-forwarded-for"
 DEFAULT_DEBUG = False
+DEFAULT_NAIVE = True
 DEFAULT_SPAM_NAIVE_THRESHOLD = 60
 MINIMUM_SCAN_LENGTH = 16  # We don't normally scan form data elements with fewer than 16 chars
 
@@ -70,6 +71,7 @@ class Aardvark:
         self.multispam_auxiliary = set()  # Auxiliary Multi-Match strings
         self.offenders = set()  # List of already known offenders (block right out!)
         self.naive_threshold = DEFAULT_SPAM_NAIVE_THRESHOLD
+        self.enable_naive = DEFAULT_NAIVE
 
         # If config file, load that into the vars
         if config_file:
@@ -78,6 +80,7 @@ class Aardvark:
             self.proxy_url = self.config.get("proxy_url", self.proxy_url)
             self.port = int(self.config.get("port", self.port))
             self.ipheader = self.config.get("ipheader", self.ipheader)
+            self.enable_naive = self.config.get("enable_naive_scan", self.enable_naive)
             self.naive_threshold = self.config.get("naive_spam_threshold", self.naive_threshold)
             for pm in self.config.get("postmatches", []):
                 r = re.compile(bytes(pm, encoding="utf-8"), flags=re.IGNORECASE)
@@ -94,8 +97,9 @@ class Aardvark:
                 for req in multimatch.get("auxiliary", []):
                     r = re.compile(bytes(req, encoding="utf-8"), flags=re.IGNORECASE)
                     self.multispam_auxiliary.add(r)
-        print("Loading Bayesian spam filter...")
-        self.spamfilter = spamfilter.BayesScanner()
+        if self.enable_naive:
+            print("Loading Naïve Bayesian spam filter...")
+            self.spamfilter = spamfilter.BayesScanner()
 
     def scan_simple(self, request_url: str, post_data: bytes = None):
         """Scans post data for spam"""
@@ -131,9 +135,11 @@ class Aardvark:
             if v and isinstance(v, str) and len(v) >= MINIMUM_SCAN_LENGTH:
                 b = bytes(v, encoding="utf-8")
                 bad_items.extend(self.scan_simple(f"formdata::{k}", b))
-                res = self.spamfilter.scan_text(v)
-                if res >= self.naive_threshold:
-                    bad_items.append(f"Form element {k} has spam score of {res}, crosses threshold of {self.naive_threshold}!")
+                # Use the naïve scanner as well?
+                if self.enable_naive:
+                    res = self.spamfilter.scan_text(v)
+                    if res >= self.naive_threshold:
+                        bad_items.append(f"Form element {k} has spam score of {res}, crosses threshold of {self.naive_threshold}!")
         return bad_items
 
     async def proxy(self, request: aiohttp.web.Request):
