@@ -24,19 +24,25 @@ import time
 import re
 import asfpy.syslog
 import typing
+import multidict
+import spamfilter
 
 # Shadow print with our syslog wrapper
-print = asfpy.syslog.Printer(stdout=True, identity='aardvark')
+print = asfpy.syslog.Printer(stdout=True, identity="aardvark")
 
 
 # Some defaults to keep this running without a yaml
 DEFAULT_PORT = 4321
 DEFAULT_BACKEND = "http://localhost:8080"
 DEFAULT_IPHEADER = "x-forwarded-for"
+DEFAULT_BLOCK_MSG = "No Cookie!"
 DEFAULT_DEBUG = False
+DEFAULT_NAIVE = True
+DEFAULT_SPAM_NAIVE_THRESHOLD = 60
+MINIMUM_SCAN_LENGTH = 16  # We don't normally scan form data elements with fewer than 16 chars
+
 
 class Aardvark:
-
     def __init__(self, config_file: str = "aardvark.yaml"):
         """ Load and parse the config """
 
@@ -53,6 +59,7 @@ class Aardvark:
         # Init vars with defaults
         self.config = {}  # Our config, unless otherwise specified in init
         self.debug = False  # Debug prints, spammy!
+        self.block_msg = DEFAULT_BLOCK_MSG
         self.proxy_url = DEFAULT_BACKEND  # Backend URL to proxy to
         self.port = DEFAULT_PORT  # Port we listen on
         self.ipheader = DEFAULT_IPHEADER  # Standard IP forward header
@@ -65,14 +72,19 @@ class Aardvark:
         self.multispam_required = set()  # Multi-Match required matches
         self.multispam_auxiliary = set()  # Auxiliary Multi-Match strings
         self.offenders = set()  # List of already known offenders (block right out!)
+        self.naive_threshold = DEFAULT_SPAM_NAIVE_THRESHOLD
+        self.enable_naive = DEFAULT_NAIVE
 
         # If config file, load that into the vars
         if config_file:
             self.config = yaml.safe_load(open(config_file, "r"))
-            self.debug = self.config.get('debug', self.debug)
+            self.debug = self.config.get("debug", self.debug)
             self.proxy_url = self.config.get("proxy_url", self.proxy_url)
-            self.port = int(self.config.get('port', self.port))
+            self.port = int(self.config.get("port", self.port))
             self.ipheader = self.config.get("ipheader", self.ipheader)
+            self.block_msg = self.config.get("spam_response", self.block_msg)
+            self.enable_naive = self.config.get("enable_naive_scan", self.enable_naive)
+            self.naive_threshold = self.config.get("naive_spam_threshold", self.naive_threshold)
             for pm in self.config.get("postmatches", []):
                 r = re.compile(bytes(pm, encoding="utf-8"), flags=re.IGNORECASE)
                 self.postmatches.add(r)
@@ -88,8 +100,11 @@ class Aardvark:
                 for req in multimatch.get("auxiliary", []):
                     r = re.compile(bytes(req, encoding="utf-8"), flags=re.IGNORECASE)
                     self.multispam_auxiliary.add(r)
+        if self.enable_naive:
+            print("Loading Naïve Bayesian spam filter...")
+            self.spamfilter = spamfilter.BayesScanner()
 
-    def scan(self, request_url: str, post_data: bytes):
+    def scan_simple(self, request_url: str, post_data: bytes = None):
         """Scans post data for spam"""
         bad_items = []
 
@@ -114,6 +129,20 @@ class Aardvark:
                             % (str(req.pattern, encoding="utf-8"), str(aux.pattern, encoding="utf-8"))
                         )
 
+        return bad_items
+
+    def scan_dict(self, post_dict: multidict.MultiDictProxy):
+        """Scans form data dicts for spam"""
+        bad_items = []
+        for k, v in post_dict.items():
+            if v and isinstance(v, str) and len(v) >= MINIMUM_SCAN_LENGTH:
+                b = bytes(v, encoding="utf-8")
+                bad_items.extend(self.scan_simple(f"formdata::{k}", b))
+                # Use the naïve scanner as well?
+                if self.enable_naive:
+                    res = self.spamfilter.scan_text(v)
+                    if res >= self.naive_threshold:
+                        bad_items.append(f"Form element {k} has spam score of {res}, crosses threshold of {self.naive_threshold}!")
         return bad_items
 
     async def proxy(self, request: aiohttp.web.Request):
@@ -145,7 +174,10 @@ class Aardvark:
                 print("Average request scan time is %.2f ms" % (avg * 1000.0))
 
         # Read POST data and query string
-        post_data = await request.read()
+        post_dict = await request.post()  # Request data as key/value pairs if applicable
+        post_data = None
+        if not post_dict:
+            post_data = await request.read()  # Request data as a blob if not valid form data
         get_data = request.rel_url.query
 
         # Perform scan!
@@ -155,7 +187,11 @@ class Aardvark:
         if remote_ip in self.offenders:
             bad_items.append("Client is on the list of bad offenders.")
         else:
-            bad_items = self.scan(request_url, post_data)
+            bad_items = []
+            if post_data:
+                bad_items.extend(self.scan_simple(request_url, post_data))
+            elif post_dict:
+                bad_items.extend(self.scan_dict(post_dict))
             #  If this URL is actually to be ignored, forget all we just did!
             if bad_items:
                 for iu in self.ignoreurls:
@@ -176,19 +212,27 @@ class Aardvark:
         if bad_items:
             self.offenders.add(remote_ip)
             self.processing_times.append(time.time() - now)
-            return aiohttp.web.Response(text="No cookie!", status=403)
+            return aiohttp.web.Response(text=self.block_msg, status=403)
 
         async with aiohttp.ClientSession() as session:
             try:
+                req_headers = request.headers.copy()
+                if post_dict:
+                    del req_headers["content-length"]
                 async with session.request(
-                    request.method, target_url, headers=request.headers, params=get_data, data=post_data
+                    request.method,
+                    target_url,
+                    headers=req_headers,
+                    params=get_data,
+                    data=post_data or post_dict,
+                    timeout=30,
                 ) as resp:
                     result = resp
                     raw = await result.read()
                     headers = result.headers.copy()
                     # We do NOT want chunked T-E! Leave it to aiohttp
-                    if 'Transfer-Encoding' in headers:
-                        del headers['Transfer-Encoding']
+                    if "Transfer-Encoding" in headers:
+                        del headers["Transfer-Encoding"]
                     self.processing_times.append(time.time() - now)
                     return aiohttp.web.Response(body=raw, status=result.status, headers=headers)
             except aiohttp.client_exceptions.ClientConnectorError as e:
@@ -196,7 +240,7 @@ class Aardvark:
                 self.processing_times.append(time.time() - now)
 
         self.processing_times.append(time.time() - now)
-        return aiohttp.web.Response(text="No cookie!", status=403)
+        return aiohttp.web.Response(text=self.block_msg, status=403)
 
 
 async def main():

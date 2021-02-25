@@ -7,6 +7,9 @@ proxy_url: "http://localhost:8080/"
 # Default IP forward header from httpd
 ipheader: x-forwarded-for
 
+# This is the text of the 403 response if a request is blocked
+spam_response: "Your request has been blocked. If you feel this is in error, please let us know at: abuse@infra.apache.org"
+
 # Debug prints for ...debug. disabled by default
 debug: false
 
@@ -14,6 +17,11 @@ debug: false
 ##############################
 # The actual spam scan rules #
 ##############################
+
+# When using the naïve spam corpus for form data, this threshold causes a block.
+# 0 is considered perfectly sane ham, 50 is bordering on spam, 100 is definitely spam
+enable_naive_scan: true
+naive_spam_threshold: 60
 
 # These automatically cause a ban
 spamurls:
