@@ -7,9 +7,13 @@ proxy_url: "http://localhost:8080/"
 # Default IP forward header from httpd
 ipheader: x-forwarded-for
 
-#####################
-# Aardvark rule-set #
-#####################
+# Debug prints for ...debug. disabled by default
+debug: false
+
+
+##############################
+# The actual spam scan rules #
+##############################
 
 # These automatically cause a ban
 spamurls:
