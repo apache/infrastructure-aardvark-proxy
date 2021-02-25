@@ -1,3 +1,6 @@
 aiohttp~=3.7.3
 PyYAML~=5.4.1
 asfpy
+multidict~=5.1.0
+nltk~=3.5
+requests~=2.25.1
