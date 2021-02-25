@@ -95,7 +95,6 @@ class BayesScanner:
 
     def scan_text(self, text: str):
         text_processed = self.tokenify(text)
-        print(text_processed)
         h, s = self.count_words(text_processed)
         result = self.naive_result(h, s)
         return result
