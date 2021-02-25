@@ -74,6 +74,7 @@ class Aardvark:
         self.offenders = set()  # List of already known offenders (block right out!)
         self.naive_threshold = DEFAULT_SPAM_NAIVE_THRESHOLD
         self.enable_naive = DEFAULT_NAIVE
+        self.lock = asyncio.Lock()
 
         # If config file, load that into the vars
         if config_file:
@@ -214,7 +215,7 @@ class Aardvark:
             self.processing_times.append(time.time() - now)
             return aiohttp.web.Response(text=self.block_msg, status=403)
 
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(auto_decompress=False) as session:
             try:
                 req_headers = request.headers.copy()
                 if post_dict:
@@ -228,13 +229,30 @@ class Aardvark:
                     timeout=30,
                 ) as resp:
                     result = resp
-                    raw = await result.read()
                     headers = result.headers.copy()
-                    # We do NOT want chunked T-E! Leave it to aiohttp
-                    if "Transfer-Encoding" in headers:
-                        del headers["Transfer-Encoding"]
                     self.processing_times.append(time.time() - now)
-                    return aiohttp.web.Response(body=raw, status=result.status, headers=headers)
+
+                    # Standard response
+                    if 'content-length' in headers:
+                        raw = await result.read()
+                        response = aiohttp.web.Response(body=raw, status=result.status, headers=headers)
+                    # Chunked response
+                    else:
+                        response = aiohttp.web.StreamResponse(status=result.status, headers=headers)
+                        response.enable_chunked_encoding()
+                        await response.prepare(request)
+                        buffer = b""
+                        async for data, end_of_http_chunk in result.content.iter_chunks():
+                            buffer += data
+                            if end_of_http_chunk:
+                                async with self.lock:
+                                    await asyncio.wait_for(response.write(buffer), timeout=5)
+                                    buffer = b""
+                        async with self.lock:
+                            await asyncio.wait_for(response.write(buffer), timeout=5)
+                            await asyncio.wait_for(response.write(b""), timeout=5)
+                    return response
+
             except aiohttp.client_exceptions.ClientConnectorError as e:
                 print("Could not connect to backend: " + str(e))
                 self.processing_times.append(time.time() - now)
