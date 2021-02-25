@@ -33,7 +33,7 @@ print = asfpy.syslog.Printer(stdout=True, identity='aardvark')
 DEFAULT_PORT = 4321
 DEFAULT_BACKEND = "http://localhost:8080"
 DEFAULT_IPHEADER = "x-forwarded-for"
-
+DEFAULT_DEBUG = False
 
 class Aardvark:
 
@@ -52,6 +52,7 @@ class Aardvark:
 
         # Init vars with defaults
         self.config = {}  # Our config, unless otherwise specified in init
+        self.debug = False  # Debug prints, spammy!
         self.proxy_url = DEFAULT_BACKEND  # Backend URL to proxy to
         self.port = DEFAULT_PORT  # Port we listen on
         self.ipheader = DEFAULT_IPHEADER  # Standard IP forward header
@@ -68,6 +69,7 @@ class Aardvark:
         # If config file, load that into the vars
         if config_file:
             self.config = yaml.safe_load(open(config_file, "r"))
+            self.debug = self.config.get('debug', self.debug)
             self.proxy_url = self.config.get("proxy_url", self.proxy_url)
             self.port = int(self.config.get('port', self.port))
             self.ipheader = self.config.get("ipheader", self.ipheader)
@@ -123,7 +125,8 @@ class Aardvark:
             remote_ip = request.headers.get(self.ipheader, request.remote)
         else:
             remote_ip = request.remote
-        #  print(f"Proxying request to {target_url}...")  # Tooooo spammy, keep it clean
+        if self.debug:
+            print(f"Proxying request to {target_url}...")  # This can get spammy, default is to not show it.
 
         # Debug output for syslog
         self.last_batches.append(time.time())
