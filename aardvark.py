@@ -35,6 +35,7 @@ print = asfpy.syslog.Printer(stdout=True, identity="aardvark")
 DEFAULT_PORT = 4321
 DEFAULT_BACKEND = "http://localhost:8080"
 DEFAULT_IPHEADER = "x-forwarded-for"
+DEFAULT_BLOCK_MSG = "No Cookie!"
 DEFAULT_DEBUG = False
 DEFAULT_NAIVE = True
 DEFAULT_SPAM_NAIVE_THRESHOLD = 60
@@ -58,6 +59,7 @@ class Aardvark:
         # Init vars with defaults
         self.config = {}  # Our config, unless otherwise specified in init
         self.debug = False  # Debug prints, spammy!
+        self.block_msg = DEFAULT_BLOCK_MSG
         self.proxy_url = DEFAULT_BACKEND  # Backend URL to proxy to
         self.port = DEFAULT_PORT  # Port we listen on
         self.ipheader = DEFAULT_IPHEADER  # Standard IP forward header
@@ -80,6 +82,7 @@ class Aardvark:
             self.proxy_url = self.config.get("proxy_url", self.proxy_url)
             self.port = int(self.config.get("port", self.port))
             self.ipheader = self.config.get("ipheader", self.ipheader)
+            self.block_msg = self.config.get("spam_response", self.block_msg)
             self.enable_naive = self.config.get("enable_naive_scan", self.enable_naive)
             self.naive_threshold = self.config.get("naive_spam_threshold", self.naive_threshold)
             for pm in self.config.get("postmatches", []):
@@ -209,7 +212,7 @@ class Aardvark:
         if bad_items:
             self.offenders.add(remote_ip)
             self.processing_times.append(time.time() - now)
-            return aiohttp.web.Response(text="No cookie!", status=403)
+            return aiohttp.web.Response(text=self.block_msg, status=403)
 
         async with aiohttp.ClientSession() as session:
             try:
@@ -237,7 +240,7 @@ class Aardvark:
                 self.processing_times.append(time.time() - now)
 
         self.processing_times.append(time.time() - now)
-        return aiohttp.web.Response(text="No cookie!", status=403)
+        return aiohttp.web.Response(text=self.block_msg, status=403)
 
 
 async def main():
