@@ -15,6 +15,10 @@ debug: false
 # The actual spam scan rules #
 ##############################
 
+# When using the naïve spam corpus for form data, this threshold causes a block.
+# 0 is considered perfectly sane ham, 50 is bordering on spam, 100 is definitely spam
+naive_spam_threshold: 60
+
 # These automatically cause a ban
 spamurls:
     - "/jira/rest/api/.+/issue/AAR-\\d+/comment"
