@@ -20,9 +20,10 @@ import typing
 import requests
 import json
 
+MINIMUM_NUMBER_OF_WORDS = 6  # We need at least SOME words to safely classify this
+
 nltk.download("stopwords")
 nltk.download("punkt")
-
 
 class BayesScanner:
     """ A very naïve spam scanner """
@@ -95,6 +96,9 @@ class BayesScanner:
 
     def scan_text(self, text: str):
         text_processed = self.tokenify(text)
-        h, s = self.count_words(text_processed)
-        result = self.naive_result(h, s)
+        if len(text_processed) >= MINIMUM_NUMBER_OF_WORDS:
+            h, s = self.count_words(text_processed)
+            result = self.naive_result(h, s)
+        else:
+            result = 0
         return result
