@@ -13,6 +13,7 @@ Aardvark is written in Python3 and uses [aiohttp](https://github.com/aio-libs/ai
 - `port`: Which port to listen on for scans. For security reasons, Aardvark will bind to localhost. Default is [1729](https://en.wikipedia.org/wiki/1729_(number))
 - `proxy_url`: The backend service to proxy to if request is sane
 - `ipheader`: The header to look for the client's IP in. Typically X-Forwarded-For.
+- `naive_spam_threshold`: This is the spam score threshold for the naïve scanner, `spamfilter.py`. It uses a pre-generated English corpus for detecting spam.
 - `spamurls`: Specific honey-pot URLs that trigger a block regardless of the action
 - `ignoreurls`: Specific URLs that are exempt from spam detection
 - `postmatches`: A list of keywords and/or regexes that, if matched, will block the request
