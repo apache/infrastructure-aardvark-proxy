@@ -25,7 +25,7 @@ import re
 import asfpy.syslog
 import typing
 
-# Shadow print with out syslog wrapper
+# Shadow print with our syslog wrapper
 print = asfpy.syslog.Printer(stdout=True, identity='aardvark')
 
 
