@@ -218,14 +218,25 @@ class Aardvark:
         async with aiohttp.ClientSession(auto_decompress=False) as session:
             try:
                 req_headers = request.headers.copy()
+                # We have to replicate the form data or we mess up file transfers
+                form_data = None
                 if post_dict:
-                    del req_headers["content-length"]
+                    form_data = aiohttp.FormData()
+                    if "content-length" in req_headers:
+                        del req_headers["content-length"]
+                    if "content-type" in req_headers:
+                        del req_headers["content-type"]
+                    for k, v in post_dict.items():
+                        if isinstance(v, aiohttp.web.FileField):  # This sets multipart properly in the request
+                            form_data.add_field(name=v.name, filename=v.filename, value=v.file.raw, content_type=v.content_type)
+                        else:
+                            form_data.add_field(name=k, value=v)
                 async with session.request(
                     request.method,
                     target_url,
                     headers=req_headers,
                     params=get_data,
-                    data=post_dict or post_data,
+                    data=form_data or post_data,
                     timeout=30,
                 ) as resp:
                     result = resp
