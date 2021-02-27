@@ -22,10 +22,13 @@ import urllib.parse
 import yaml
 import time
 import re
+import os
 import asfpy.syslog
 import typing
 import multidict
+import uuid
 import spamfilter
+import aiofile
 
 # Shadow print with our syslog wrapper
 print = asfpy.syslog.Printer(stdout=True, identity="aardvark")
@@ -36,6 +39,7 @@ DEFAULT_PORT = 4321
 DEFAULT_BACKEND = "http://localhost:8080"
 DEFAULT_IPHEADER = "x-forwarded-for"
 DEFAULT_BLOCK_MSG = "No Cookie!"
+DEFAULT_SAVE_PATH = "/tmp/aardvark"
 DEFAULT_DEBUG = False
 DEFAULT_NAIVE = True
 DEFAULT_SPAM_NAIVE_THRESHOLD = 60
@@ -63,6 +67,7 @@ class Aardvark:
         self.proxy_url = DEFAULT_BACKEND  # Backend URL to proxy to
         self.port = DEFAULT_PORT  # Port we listen on
         self.ipheader = DEFAULT_IPHEADER  # Standard IP forward header
+        self.savepath = DEFAULT_SAVE_PATH  # File path for saving offender data
         self.last_batches = []  # Last batches of requests for stats
         self.scan_times = []  # Scan times for stats
         self.processing_times = []  # Request proxy processing times for stats
@@ -83,6 +88,7 @@ class Aardvark:
             self.proxy_url = self.config.get("proxy_url", self.proxy_url)
             self.port = int(self.config.get("port", self.port))
             self.ipheader = self.config.get("ipheader", self.ipheader)
+            self.savepath = self.config.get("savedata", self.savepath)
             self.block_msg = self.config.get("spam_response", self.block_msg)
             self.enable_naive = self.config.get("enable_naive_scan", self.enable_naive)
             self.naive_threshold = self.config.get("naive_spam_threshold", self.naive_threshold)
@@ -104,6 +110,36 @@ class Aardvark:
         if self.enable_naive:
             print("Loading Naïve Bayesian spam filter...")
             self.spamfilter = spamfilter.BayesScanner()
+    
+    
+    async def save_request_data(
+        self, request: aiohttp.web.Request, remote_ip: str, post: typing.Union[multidict.MultiDictProxy, bytes]
+    ):
+        if not self.savepath:  # If savepath is None, disable saving
+            return
+        reqid = "request_data_from_%s-%s.txt" % (
+            re.sub(r"[^0-9.]+", "-", remote_ip),
+            str(uuid.uuid4()),
+        )
+        filepath = os.path.join(self.savepath, reqid)
+        if not os.path.isdir(self.savepath):
+            print("Creating save data dir %s" % self.savepath)
+            try:
+                os.mkdir(self.savepath)
+            except PermissionError as e:
+                print("Could not create save data dir, bailing: %s" % e)
+                return
+        print(f"Saving offender data as {filepath}")
+        async with aiofile.async_open(filepath, "w") as f:
+            headers = "\r\n".join(
+                [": ".join([str(x, encoding="utf-8") for x in header]) for header in request.raw_headers]
+            )
+            await f.write(headers + "\r\n\r\n")
+            if isinstance(post, multidict.MultiDictProxy):
+                for k, v in post.items():
+                    await f.write(f"{k}={v}\n")
+            else:
+                await f.write(str(post, encoding="utf-8"))
 
     def scan_simple(self, request_url: str, post_data: bytes = None):
         """Scans post data for spam"""
@@ -185,8 +221,10 @@ class Aardvark:
         bad_items = []
 
         # Check if offender is in out registry already
+        known_offender = False
         if remote_ip in self.offenders:
             bad_items.append("Client is on the list of bad offenders.")
+            known_offender = True
         else:
             bad_items = []
             if post_data:
@@ -205,6 +243,8 @@ class Aardvark:
             print(f"Request from {remote_ip} to '{request_url}' contains possible spam:")
             for item in bad_items:
                 print(f"[{remote_ip}]: {item}")
+            if not known_offender:  # Only save request data for new cases
+                await self.save_request_data(request, remote_ip, post_dict or post_data)
 
         # Done with scan, log how long that took
         self.scan_times.append(time.time() - now)
