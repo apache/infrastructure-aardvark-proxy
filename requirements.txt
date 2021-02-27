@@ -4,3 +4,4 @@ asfpy
 multidict~=5.1.0
 nltk~=3.5
 requests~=2.25.1
+aiofile~=3.4.0
