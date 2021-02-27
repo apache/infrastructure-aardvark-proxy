@@ -35,7 +35,7 @@ print = asfpy.syslog.Printer(stdout=True, identity="aardvark")
 
 
 # Some defaults to keep this running without a yaml
-DEFAULT_PORT = 4321
+DEFAULT_PORT = 1729
 DEFAULT_BACKEND = "http://localhost:8080"
 DEFAULT_IPHEADER = "x-forwarded-for"
 DEFAULT_BLOCK_MSG = "No Cookie!"
