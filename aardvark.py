@@ -138,7 +138,7 @@ class Aardvark:
             if isinstance(post, multidict.MultiDictProxy):
                 for k, v in post.items():
                     await f.write(f"{k}={v}\n")
-            else:
+            elif post and isinstance(post, bytes):
                 await f.write(str(post, encoding="utf-8"))
 
     def scan_simple(self, request_url: str, post_data: bytes = None):
