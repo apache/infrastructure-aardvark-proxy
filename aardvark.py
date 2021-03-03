@@ -29,6 +29,7 @@ import multidict
 import uuid
 import spamfilter
 import aiofile
+import platform
 
 # Shadow print with our syslog wrapper
 print = asfpy.syslog.Printer(stdout=True, identity="aardvark")
@@ -68,6 +69,7 @@ class Aardvark:
         self.port = DEFAULT_PORT  # Port we listen on
         self.ipheader = DEFAULT_IPHEADER  # Standard IP forward header
         self.savepath = DEFAULT_SAVE_PATH  # File path for saving offender data
+        self.asyncwrite = False  # Only works on later Linux (>=4.18)
         self.last_batches = []  # Last batches of requests for stats
         self.scan_times = []  # Scan times for stats
         self.processing_times = []  # Request proxy processing times for stats
@@ -80,6 +82,11 @@ class Aardvark:
         self.naive_threshold = DEFAULT_SPAM_NAIVE_THRESHOLD
         self.enable_naive = DEFAULT_NAIVE
         self.lock = asyncio.Lock()
+        
+        if platform.system() == 'Linux':
+            major, minor, _ = platform.release().split('.', 2)
+            if major > "4" or (major >= "4" and minor >= "18"):
+                self.asyncwrite = True
 
         # If config file, load that into the vars
         if config_file:
@@ -89,6 +96,7 @@ class Aardvark:
             self.port = int(self.config.get("port", self.port))
             self.ipheader = self.config.get("ipheader", self.ipheader)
             self.savepath = self.config.get("savedata", self.savepath)
+            self.asyncwrite = self.config.get("asyncwrite", self.asyncwrite)
             self.block_msg = self.config.get("spam_response", self.block_msg)
             self.enable_naive = self.config.get("enable_naive_scan", self.enable_naive)
             self.naive_threshold = self.config.get("naive_spam_threshold", self.naive_threshold)
@@ -111,9 +119,8 @@ class Aardvark:
             print("Loading Naïve Bayesian spam filter...")
             self.spamfilter = spamfilter.BayesScanner()
     
-    
     async def save_request_data(
-        self, request: aiohttp.web.Request, remote_ip: str, post: typing.Union[multidict.MultiDictProxy, bytes]
+            self, request: aiohttp.web.Request, remote_ip: str, post: typing.Union[multidict.MultiDictProxy, bytes]
     ):
         if not self.savepath:  # If savepath is None, disable saving
             return
@@ -130,16 +137,22 @@ class Aardvark:
                 print("Could not create save data dir, bailing: %s" % e)
                 return
         print(f"Saving offender data as {filepath}")
-        async with aiofile.async_open(filepath, "w") as f:
-            headers = "\r\n".join(
-                [": ".join([str(x, encoding="utf-8") for x in header]) for header in request.raw_headers]
-            )
-            await f.write(headers + "\r\n\r\n")
-            if isinstance(post, multidict.MultiDictProxy):
-                for k, v in post.items():
-                    await f.write(f"{k}={v}\n")
-            elif post and isinstance(post, bytes):
-                await f.write(str(post, encoding="utf-8"))
+        savedata = f"{request.method} {request.path} HTTP/{request.version.major}.{request.version.minor}\r\n"
+        savedata += "\r\n".join(
+            [": ".join([str(x, encoding="utf-8") for x in header]) for header in request.raw_headers]
+        )
+        savedata += "\r\n\r\n"
+        if isinstance(post, multidict.MultiDictProxy):
+            for k, v in post.items():
+                savedata += f"{k}={v}\n"
+        elif post and isinstance(post, bytes):
+            savedata += str(post, encoding="utf-8")
+        if self.asyncwrite:
+            async with aiofile.async_open(filepath, "w") as f:
+                await f.write(savedata)
+        else:
+            with open(filepath, "w") as f:
+                f.write(savedata)
 
     def scan_simple(self, request_url: str, post_data: bytes = None):
         """Scans post data for spam"""
