@@ -13,6 +13,8 @@ spam_response: "Your request has been blocked. If you feel this is in error, ple
 # Debug prints for ...debug. disabled by default
 debug: false
 
+# Enable persistent storage of offenders
+persistence: true
 
 ##############################
 # The actual spam scan rules #
