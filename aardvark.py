@@ -87,6 +87,10 @@ class Aardvark:
             major, minor, _ = platform.release().split('.', 2)
             if major > "4" or (major >= "4" and minor >= "18"):
                 self.asyncwrite = True
+        if self.asyncwrite:
+            print("Utilizing kernel support for asynchronous writing of files")
+        else:
+            print("Kernel does not support asynchronous writing of files, falling back to synced writing")
 
         # If config file, load that into the vars
         if config_file:
