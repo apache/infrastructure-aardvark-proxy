@@ -250,11 +250,11 @@ class Aardvark:
 
         # Debug output for syslog
         self.last_batches.append(time.time())
-        if len(self.last_batches) >= 5000:
+        if len(self.last_batches) >= 25000:
             diff = self.last_batches[-1] - self.last_batches[0]
             diff += 0.01
             self.last_batches = []
-            print("Last 5k anti spam scans done at %.2f req/sec" % (5000 / diff))
+            print("Last 25k anti spam scans done at %.2f req/sec" % (25000 / diff))
             if self.processing_times:
                 avg = sum(self.processing_times) / len(self.processing_times)
                 self.processing_times = []
