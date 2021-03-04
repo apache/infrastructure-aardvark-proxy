@@ -90,10 +90,9 @@ class BayesScanner:
         """ Calculate the naïve result. 0 means ham, 50 means I don't know, 100 means spam"""
         if ham > spam:
             return round(100 - (ham / (ham + spam) * 100))
-        elif ham == spam:
-            return 50
-        if ham < spam:
+        elif ham < spam and spam >= MINIMUM_NUMBER_OF_WORDS/2:
             return round(spam / (ham + spam) * 100)
+        return 50
 
     def scan_text(self, text: str):
         text_processed = self.tokenify(text)
