@@ -103,7 +103,6 @@ class Aardvark:
             self.port = int(self.config.get("port", self.port))
             self.ipheader = self.config.get("ipheader", self.ipheader)
             self.savepath = self.config.get("savedata", self.savepath)
-            self.asyncwrite = self.config.get("asyncwrite", self.asyncwrite)
             self.persistence = self.config.get("persistence", self.persistence)
             self.block_msg = self.config.get("spam_response", self.block_msg)
             self.enable_naive = self.config.get("enable_naive_scan", self.enable_naive)
