@@ -16,6 +16,9 @@ debug: false
 # Enable persistent storage of offenders
 persistence: true
 
+# This is where we save the bad requests, for further perusal. Only one request per IP is saved (the first)
+savedata: /tmp/aardvark
+
 ##############################
 # The actual spam scan rules #
 ##############################
