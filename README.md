@@ -63,3 +63,12 @@ RewriteRule ^/(.*)$ http://localhost:1729/$1 [P]
 # Rest goes to backend directly
 ProxyPass / http://localhost:8080/foo/bar/
 ~~~
+
+
+## Unblocking an IP
+IPs can be unblocked in a couple of ways:
+
+- bouncing Aardvark without persistence, this resets the block list
+- manually editing the block list file (if persistence is turned on) and bouncing Aardvark
+- using unblock.py: `python3 unblock.py ip.goes.here`
+- Using cURL: `curl 'http://localhost:1729/aardvark-unblock?ip.goes.here' -H 'X-Aardvark-Key: uuid-from-blocklist.txt'`
