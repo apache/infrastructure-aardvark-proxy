@@ -18,6 +18,8 @@ Aardvark is written in Python3 and uses [aiohttp](https://github.com/aio-libs/ai
 - `ignoreurls`: Specific URLs that are exempt from spam detection
 - `postmatches`: A list of keywords and/or regexes that, if matched, will block the request
 - `multimatch`: A combination blocker. If a `required` keyword or regex is matched, the request will be blocked only if one or more `auxiliary` keywords/regexes are also matched
+- `persistence`: Enables persistent storage of offending IPs in `blocklist.txt`. Enabling this also enables you to use unblock.py (to be enhanced further at a later point).
+- `debug`: If set to `true`, will spit out some extra lines for reach request handled. Can get very spammy.
 
 ## Naïve Spam Scan
 Aardvark contains a very naïve spam scanner in `spamfilter.py` that uses a very simplified Bayes-esque formula for
