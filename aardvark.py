@@ -43,6 +43,7 @@ DEFAULT_BLOCK_MSG = "No Cookie!"
 DEFAULT_SAVE_PATH = "/tmp/aardvark"
 DEFAULT_DEBUG = False
 DEFAULT_NAIVE = True
+DEBUG_SUPPRESS = False
 DEFAULT_SPAM_NAIVE_THRESHOLD = 60
 MINIMUM_SCAN_LENGTH = 16  # We don't normally scan form data elements with fewer than 16 chars
 BLOCKFILE = "blocklist.txt"
@@ -72,6 +73,7 @@ class Aardvark:
         self.port = DEFAULT_PORT  # Port we listen on
         self.ipheader = DEFAULT_IPHEADER  # Standard IP forward header
         self.savepath = DEFAULT_SAVE_PATH  # File path for saving offender data
+        self.suppress_repeats = DEBUG_SUPPRESS  # Whether to suppress logging of repeat offenders
         self.asyncwrite = False  # Only works on later Linux (>=4.18)
         self.last_batches = []  # Last batches of requests for stats
         self.scan_times = []  # Scan times for stats
@@ -104,6 +106,7 @@ class Aardvark:
             self.ipheader = self.config.get("ipheader", self.ipheader)
             self.savepath = self.config.get("savedata", self.savepath)
             self.persistence = self.config.get("persistence", self.persistence)
+            self.suppress_repeats = self.config.get("suppress_repeats", self.suppress_repeats)
             self.block_msg = self.config.get("spam_response", self.block_msg)
             self.enable_naive = self.config.get("enable_naive_scan", self.enable_naive)
             self.naive_threshold = self.config.get("naive_spam_threshold", self.naive_threshold)
@@ -294,9 +297,10 @@ class Aardvark:
                         break
 
         if bad_items:
-            print(f"Request from {remote_ip} to '{request_url}' contains possible spam:")
-            for item in bad_items:
-                print(f"[{remote_ip}]: {item}")
+            if self.debug or not (known_offender and self.suppress_repeats):
+                print(f"Request from {remote_ip} to '{request_url}' contains possible spam:")
+                for item in bad_items:
+                    print(f"[{remote_ip}]: {item}")
             if not known_offender:  # Only save request data for new cases
                 await self.save_request_data(request, remote_ip, post_dict or post_data)
 
