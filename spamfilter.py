@@ -20,7 +20,7 @@ import typing
 import requests
 import json
 
-MINIMUM_NUMBER_OF_WORDS = 6  # We need at least SOME words to safely classify this
+MINIMUM_NUMBER_OF_WORDS = 9  # We need at least SOME words to safely classify this
 
 
 class BayesScanner:
