@@ -69,6 +69,7 @@ postmatches:
     - "moneyprinters"
     - "free[- ]watch.+?listen"
     - "https://tvvslivenba.co/"
+    - "certsexpert"
 
 # Match multiple of these to ban
 multimatch:
