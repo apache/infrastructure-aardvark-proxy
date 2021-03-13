@@ -70,6 +70,12 @@ postmatches:
     - "free[- ]watch.+?listen"
     - "https://tvvslivenba.co/"
     - "certsexpert"
+    - "online bank"
+    - "bank online"
+    - "online deposit"
+    - "deposit online"
+    - "deposit bank"
+    - "bank deposit"
 
 # Match multiple of these to ban
 multimatch:
