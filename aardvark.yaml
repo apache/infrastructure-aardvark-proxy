@@ -76,6 +76,7 @@ postmatches:
     - "deposit online"
     - "deposit bank"
     - "bank deposit"
+    - "casino"
 
 # Match multiple of these to ban
 multimatch:
