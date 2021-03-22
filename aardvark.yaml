@@ -29,7 +29,7 @@ savedata: /tmp/aardvark
 # When using the naïve spam corpus for form data, this threshold causes a block.
 # 0 is considered perfectly sane ham, 50 is bordering on spam, 100 is definitely spam
 enable_naive_scan: true
-naive_spam_threshold: 80
+naive_spam_threshold: 85
 
 # These automatically cause a ban
 spamurls:
