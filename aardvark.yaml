@@ -60,6 +60,7 @@ postmatches:
     - "\\b(https?[:/%32AF]*\\S*dissertation\\S*)\\b"
     - "\\b(https?[:/%32AF]*[^/\\s]*assignment\\S*)\\b"
     - "\\b(https?[:/%32AF]*[^/\\s]*dumps\\S*)\\b"
+    - "\\b(https?[:/%32AF]*[^/\\s]*lead\\S*)\\b"
     - "\\b(https?[:/%32AF]*\\S*poker\\S*)\\b"
     - "assignmenthelp"
     - "paperwriting"
@@ -78,6 +79,8 @@ postmatches:
     - "deposit bank"
     - "bank deposit"
     - "casino"
+    - "money back"
+    - "% discount"
 
 # Match multiple of these to ban
 multimatch:
