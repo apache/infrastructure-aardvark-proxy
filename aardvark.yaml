@@ -82,6 +82,7 @@ postmatches:
     - "casino"
     - "money back"
     - "% discount"
+    - "Full Movie Online"
 
 # Match multiple of these to ban
 multimatch:
