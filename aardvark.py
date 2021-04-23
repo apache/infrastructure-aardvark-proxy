@@ -337,6 +337,7 @@ class Aardvark:
                         params=get_data,
                         data=form_data or post_data,
                         timeout=30,
+                        allow_redirects=False,
                 ) as resp:
                     result = resp
                     headers = result.headers.copy()
