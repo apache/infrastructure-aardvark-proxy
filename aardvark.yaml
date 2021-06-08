@@ -84,6 +84,7 @@ postmatches:
     - "% discount"
     - "Full Movie Online"
     - "sevenmentor"
+    - "streamsable"
 
 # Match multiple of these to ban
 multimatch:
