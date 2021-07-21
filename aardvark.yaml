@@ -58,7 +58,6 @@ postmatches:
     - "\\b(https?[:/%32AF]*\\S*800support\\S*)\\b"
     - "drzafarsaifi"
     - "\\b(https?[:/%32AF]*\\S*dissertation\\S*)\\b"
-    - "\\b(https?[:/%32AF]*\\S*dumps\\S*)\\b"
     - "\\b(https?[:/%32AF]*[^/\\s]*assignment\\S*)\\b"
     - "\\b(https?[:/%32AF]*[^/\\s]*dumps\\S*)\\b"
     - "\\b(https?[:/%32AF]*[^/\\s]*lead\\S*)\\b"
