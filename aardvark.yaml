@@ -8,7 +8,7 @@ proxy_url: "http://localhost:8080/"
 ipheader: x-forwarded-for
 
 # This is the text of the 403 response if a request is blocked
-spam_response: "Your request has been blocked. If you feel this is in error, please let us know at: abuse@infra.apache.org"
+spam_response: "Your request has been blocked. If you feel this is in error, please let us know at: abuse@infra.apache.org. Be sure to include your IP address so we know what to look for."
 
 # Debug prints for ...debug. disabled by default
 debug: false
