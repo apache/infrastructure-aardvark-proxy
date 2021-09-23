@@ -383,7 +383,7 @@ class Aardvark:
 
 async def main():
     aar = Aardvark()
-    app = aiohttp.web.Application()
+    app = aiohttp.web.Application(client_max_size=62914560)
     app.router.add_route("*", "/{path:.*?}", aar.proxy)
     runner = aiohttp.web.AppRunner(app)
 
