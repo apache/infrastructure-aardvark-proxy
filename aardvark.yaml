@@ -4,6 +4,9 @@ port: 1729
 # Which backend to proxy to if request is kosher
 proxy_url: "http://localhost:8080/"
 
+# Max size in bytes for a request payload. 60MB.
+max_request_size: 62914560
+
 # Default IP forward header from httpd
 ipheader: x-forwarded-for
 
