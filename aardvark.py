@@ -38,6 +38,7 @@ print = asfpy.syslog.Printer(stdout=True, identity="aardvark")
 # Some defaults to keep this running without a yaml
 DEFAULT_PORT = 1729
 DEFAULT_BACKEND = "http://localhost:8080"
+DEFAULT_MAX_REQUEST_SIZE = 1024 ** 2
 DEFAULT_IPHEADER = "x-forwarded-for"
 DEFAULT_BLOCK_MSG = "No Cookie!"
 DEFAULT_SAVE_PATH = "/tmp/aardvark"
@@ -70,6 +71,7 @@ class Aardvark:
         self.persistence = False  # Persistent block list
         self.block_msg = DEFAULT_BLOCK_MSG
         self.proxy_url = DEFAULT_BACKEND  # Backend URL to proxy to
+        self.max_request_size = DEFAULT_MAX_REQUEST_SIZE
         self.port = DEFAULT_PORT  # Port we listen on
         self.ipheader = DEFAULT_IPHEADER  # Standard IP forward header
         self.savepath = DEFAULT_SAVE_PATH  # File path for saving offender data
@@ -102,6 +104,7 @@ class Aardvark:
             self.config = yaml.safe_load(open(config_file, "r"))
             self.debug = self.config.get("debug", self.debug)
             self.proxy_url = self.config.get("proxy_url", self.proxy_url)
+            self.max_request_size = self.config.get("max_request_size", self.max_request_size)
             self.port = int(self.config.get("port", self.port))
             self.ipheader = self.config.get("ipheader", self.ipheader)
             self.savepath = self.config.get("savedata", self.savepath)
@@ -383,7 +386,7 @@ class Aardvark:
 
 async def main():
     aar = Aardvark()
-    app = aiohttp.web.Application()
+    app = aiohttp.web.Application(client_max_size=aar.max_request_size)
     app.router.add_route("*", "/{path:.*?}", aar.proxy)
     runner = aiohttp.web.AppRunner(app)
 
