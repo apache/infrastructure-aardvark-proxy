@@ -344,6 +344,8 @@ class Aardvark:
                 ) as resp:
                     result = resp
                     headers = result.headers.copy()
+                    if "server" not in headers:
+                        headers["server"] = "JIRA (via Aardvark)"
                     self.processing_times.append(time.time() - now)
 
                     # Standard response
