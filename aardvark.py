@@ -14,6 +14,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import quart
 import asyncio
 import aiohttp
 import aiohttp.web
@@ -31,6 +32,7 @@ import spamfilter
 import aiofile
 import platform
 import datetime
+import async_timeout
 
 # Shadow print with our syslog wrapper
 print = asfpy.syslog.Printer(stdout=True, identity="aardvark")
@@ -48,7 +50,8 @@ DEBUG_SUPPRESS = False
 DEFAULT_SPAM_NAIVE_THRESHOLD = 60
 MINIMUM_SCAN_LENGTH = 16  # We don't normally scan form data elements with fewer than 16 chars
 BLOCKFILE = "blocklist.txt"
-
+DEFAULT_READ_TIMEOUT = 180  # Default POST data read timeout
+MAX_STREAM_TIMEOUT = 900  # Max duration for a streamed (chunked) response
 
 class Aardvark:
     def __init__(self, config_file: str = "aardvark.yaml"):
@@ -89,6 +92,11 @@ class Aardvark:
         self.naive_threshold = DEFAULT_SPAM_NAIVE_THRESHOLD
         self.enable_naive = DEFAULT_NAIVE
         self.lock = asyncio.Lock()
+        self.aiosession = None
+
+        # Initialize Quart app
+        self.quart = quart.Quart("aardvark")
+        self.quart.config["MAX_CONTENT_LENGTH"] = self.max_request_size  # Ensure Aardvark's max body size is relayed to Quart
 
         if platform.system() == 'Linux':
             major, minor, _ = platform.release().split('.', 2)
@@ -141,6 +149,15 @@ class Aardvark:
         if self.enable_naive:
             print("Loading Naïve Bayesian spam filter...")
             self.spamfilter = spamfilter.BayesScanner()
+
+        @self.quart.route("/<path:path>")
+        async def proxy(path):
+            return await self.proxy()
+
+        @self.quart.before_serving
+        async def setup_aio_session():
+            async with self.quart.app_context():
+                self.aiosession = aiohttp.ClientSession(auto_decompress=False)
 
     async def save_block_list_async(self):
         async with aiofile.async_open(BLOCKFILE, "w") as f:
@@ -232,21 +249,21 @@ class Aardvark:
                             f"Form element {k} has spam score of {res}, crosses threshold of {self.naive_threshold}!")
         return bad_items
 
-    async def proxy(self, request: aiohttp.web.Request):
+    async def proxy(self):
         """Handles each proxy request"""
-        request_url = "/" + request.match_info["path"]
+        request_url = quart.request.path
         now = time.time()
         target_url = urllib.parse.urljoin(self.proxy_url, request_url)
         if self.ipheader:
-            remote_ip = request.headers.get(self.ipheader, request.remote)
+            remote_ip = quart.request.headers.get(self.ipheader, quart.request.remote_addr)
         else:
-            remote_ip = request.remote
+            remote_ip = quart.request.remote_addr
         if self.debug:
             print(f"Proxying request to {target_url}...")  # This can get spammy, default is to not show it.
 
-        if request.path == '/aardvark-unblock':
-            ip = request.query_string
-            theiruid = request.headers.get('X-Aardvark-Key', '')
+        if request_url == '/aardvark-unblock':
+            ip = quart.request.query_string
+            theiruid = quart.request.headers.get('X-Aardvark-Key', '')
             if theiruid == self.myuid:
                 if ip in self.offenders:
                     self.offenders.remove(ip)
@@ -271,11 +288,15 @@ class Aardvark:
                 print("Average request scan time is %.2f ms" % (avg * 1000.0))
 
         # Read POST data and query string
-        post_dict = await request.post()  # Request data as key/value pairs if applicable
-        post_data = None
+        post_dict = await quart.request.form
+        print(post_dict)
+        post_data = b""
         if not post_dict:
-            post_data = await request.read()  # Request data as a blob if not valid form data
-        get_data = request.rel_url.query
+            async with async_timeout.timeout(DEFAULT_READ_TIMEOUT):
+                async for data in quart.request.body:
+                    post_data += data
+
+        get_data = quart.request.args
 
         # Perform scan!
         bad_items = []
@@ -305,7 +326,7 @@ class Aardvark:
                 for item in bad_items:
                     print(f"[{remote_ip}]: {item}")
             if not known_offender:  # Only save request data for new cases
-                await self.save_request_data(request, remote_ip, post_dict or post_data)
+                await self.save_request_data(quart.request, remote_ip, post_dict or post_data)
 
         # Done with scan, log how long that took
         self.scan_times.append(time.time() - now)
@@ -316,65 +337,61 @@ class Aardvark:
             self.processing_times.append(time.time() - now)
             return aiohttp.web.Response(text=self.block_msg, status=403)
 
-        async with aiohttp.ClientSession(auto_decompress=False) as session:
-            try:
-                req_headers = request.headers.copy()
-                # We have to replicate the form data or we mess up file transfers
-                form_data = None
-                if post_dict:
-                    form_data = aiohttp.FormData()
-                    if "content-length" in req_headers:
-                        del req_headers["content-length"]
-                    if "content-type" in req_headers:
-                        del req_headers["content-type"]
-                    for k, v in post_dict.items():
-                        if isinstance(v, aiohttp.web.FileField):  # This sets multipart properly in the request
-                            form_data.add_field(name=v.name, filename=v.filename, value=v.file.raw,
-                                                content_type=v.content_type)
-                        else:
-                            form_data.add_field(name=k, value=v)
-                async with session.request(
-                        request.method,
+        session = self.aiosession
+        try:
+            req_headers = quart.request.headers.copy()
+            # We have to replicate the form data or we mess up file transfers
+            form_data = None
+            if post_dict:
+                form_data = aiohttp.FormData()
+                if "content-length" in req_headers:
+                    del req_headers["content-length"]
+                if "content-type" in req_headers:
+                    del req_headers["content-type"]
+                for k, v in post_dict.items():
+                    if isinstance(v, aiohttp.web.FileField):  # This sets multipart properly in the request
+                        form_data.add_field(name=v.name, filename=v.filename, value=v.file.raw,
+                                            content_type=v.content_type)
+                    else:
+                        form_data.add_field(name=k, value=v)
+
+            # Send the request with a timeout (we may not want a timeout for the reponse, so we wrap it here instead)
+            async with async_timeout.timeout(DEFAULT_READ_TIMEOUT):
+                result: aiohttp.ClientResponse = await session.request(
+                        quart.request.method,
                         target_url,
                         headers=req_headers,
+                        timeout=0,
                         params=get_data,
                         data=form_data or post_data,
-                        timeout=30,
                         allow_redirects=False,
-                ) as resp:
-                    result = resp
-                    headers = result.headers.copy()
-                    if "server" not in headers:
-                        headers["server"] = "JIRA (via Aardvark)"
-                    self.processing_times.append(time.time() - now)
+                )
 
-                    # Standard response
-                    if 'content-length' in headers:
-                        raw = await result.read()
-                        response = aiohttp.web.Response(body=raw, status=result.status, headers=headers)
-                    # Chunked response
-                    else:
-                        response = aiohttp.web.StreamResponse(status=result.status, headers=headers)
-                        response.enable_chunked_encoding()
-                        await response.prepare(request)
-                        buffer = b""
-                        async for data, end_of_http_chunk in result.content.iter_chunks():
-                            buffer += data
-                            if end_of_http_chunk:
-                                async with self.lock:
-                                    await asyncio.wait_for(response.write(buffer), timeout=5)
-                                    buffer = b""
-                        async with self.lock:
-                            await asyncio.wait_for(response.write(buffer), timeout=5)
-                            await asyncio.wait_for(response.write(b""), timeout=5)
-                    return response
+            headers = {a: b for a, b in result.headers.items()}
+            if "server" not in result.headers:
+                headers["server"] = "JIRA (via Aardvark)"
+            self.processing_times.append(time.time() - now)
 
-            except aiohttp.client_exceptions.ClientConnectorError as e:
-                print("Could not connect to backend: " + str(e))
-                self.processing_times.append(time.time() - now)
+            # Standard response
+            if 'content-length' in result.headers:
+                raw = await result.read()
+                response = quart.Response(response=raw, status=result.status, headers=headers)
+                await result.wait_for_close()
+            # Chunked response
+            else:
+                response = await quart.make_response(self.streamed_response(result))
+                response.headers = headers
+                response.status = result.status
+                response.timeout = MAX_STREAM_TIMEOUT
+
+            return response
+
+        except aiohttp.client_exceptions.ClientConnectorError as e:
+            print("Could not connect to backend: " + str(e))
+            self.processing_times.append(time.time() - now)
 
         self.processing_times.append(time.time() - now)
-        return aiohttp.web.Response(text=self.block_msg, status=403)
+        return quart.Response(response=self.block_msg, status=403)
 
     async def sync_block_list(self):
         while True:
@@ -385,25 +402,28 @@ class Aardvark:
                     self.save_block_list_sync()
             await asyncio.sleep(900)
 
+    async def streamed_response(self, aioresponse: aiohttp.ClientResponse):
+        """Streamed response coroutine"""
+        buffer = b""
+        async for data, end_of_http_chunk in aioresponse.content.iter_chunks():
+            buffer += data
+            if end_of_http_chunk:
+                yield buffer
+                buffer = b""
+        await aioresponse.close()
+
 
 async def main():
     aar = Aardvark()
-    app = aiohttp.web.Application(client_max_size=aar.max_request_size)
-    app.router.add_route("*", "/{path:.*?}", aar.proxy)
-    runner = aiohttp.web.AppRunner(app)
-
-    await runner.setup()
-    site = aiohttp.web.TCPSite(runner, "localhost", aar.port)
     print("Starting Aardvark Anti Spam Proxy")
-    await site.start()
     print(f"Started on port {aar.port}")
     print(f"Unblock UUID: {aar.myuid}")
     await aar.sync_block_list()
+    return aar.quart
 
 
 if __name__ == "__main__":
-    try:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(main())
-    except KeyboardInterrupt:
-        pass
+    aar = Aardvark()
+    aar.quart.run(port=aar.port, server_header=False)
+else:
+    app = Aardvark().quart
