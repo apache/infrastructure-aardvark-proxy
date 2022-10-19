@@ -1,7 +1,11 @@
-aiohttp~=3.7.3
-PyYAML~=5.4.1
+quart
+PyYAML
 asfpy
-multidict~=5.1.0
-nltk~=3.5
-requests~=2.25.1
-aiofile~=3.4.0
+multidict
+nltk
+requests
+aiofile
+watchdog
+aiohttp
+async_timeout
+
