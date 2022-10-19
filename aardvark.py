@@ -428,6 +428,6 @@ async def main():
 
 if __name__ == "__main__":
     aar = Aardvark()
-    aar.quart.run(port=aar.port, server_header=False)
+    aar.quart.run(port=aar.port, server_header=False)  # TO-DO: Figure out why headers are being duplicated here..
 else:
     app = Aardvark().quart
