@@ -40,7 +40,7 @@ print = asfpy.syslog.Printer(stdout=True, identity="aardvark")
 # Some defaults to keep this running without a yaml
 DEFAULT_PORT = 1729
 DEFAULT_BACKEND = "http://localhost:8080"
-DEFAULT_MAX_REQUEST_SIZE = 1024 ** 2
+DEFAULT_MAX_REQUEST_SIZE = 1024**2
 DEFAULT_IPHEADER = "x-forwarded-for"
 DEFAULT_BLOCK_MSG = "No Cookie!"
 DEFAULT_SAVE_PATH = "/tmp/aardvark"
@@ -53,9 +53,10 @@ BLOCKFILE = "blocklist.txt"
 DEFAULT_READ_TIMEOUT = 180  # Default POST data read timeout
 MAX_STREAM_TIMEOUT = 900  # Max duration for a streamed (chunked) response
 
+
 class Aardvark:
     def __init__(self, config_file: str = "aardvark.yaml"):
-        """ Load and parse the config """
+        """Load and parse the config"""
 
         # Type checking hints for mypy
         self.scan_times: typing.List[float]
@@ -96,10 +97,12 @@ class Aardvark:
 
         # Initialize Quart app
         self.quart = quart.Quart("aardvark")
-        self.quart.config["MAX_CONTENT_LENGTH"] = self.max_request_size  # Ensure Aardvark's max body size is relayed to Quart
+        self.quart.config[
+            "MAX_CONTENT_LENGTH"
+        ] = self.max_request_size  # Ensure Aardvark's max body size is relayed to Quart
 
-        if platform.system() == 'Linux':
-            major, minor, _ = platform.release().split('.', 2)
+        if platform.system() == "Linux":
+            major, minor, _ = platform.release().split(".", 2)
             if major > "4" or (major >= "4" and minor >= "18"):
                 self.asyncwrite = True
         if self.asyncwrite:
@@ -171,9 +174,8 @@ class Aardvark:
             bl += "\n".join(self.offenders)
             f.write(bl)
 
-
     async def save_request_data(
-            self, request: aiohttp.web.Request, remote_ip: str, post: typing.Union[multidict.MultiDictProxy, bytes]
+        self, request: aiohttp.web.Request, remote_ip: str, post: typing.Union[multidict.MultiDictProxy, bytes]
     ):
         if not self.savepath:  # If savepath is None, disable saving
             return
@@ -246,7 +248,8 @@ class Aardvark:
                     res = self.spamfilter.scan_text(v)
                     if res >= self.naive_threshold:
                         bad_items.append(
-                            f"Form element {k} has spam score of {res}, crosses threshold of {self.naive_threshold}!")
+                            f"Form element {k} has spam score of {res}, crosses threshold of {self.naive_threshold}!"
+                        )
         return bad_items
 
     async def proxy(self):
@@ -261,9 +264,9 @@ class Aardvark:
         if self.debug:
             print(f"Proxying request to {target_url}...")  # This can get spammy, default is to not show it.
 
-        if request_url == '/aardvark-unblock':
+        if request_url == "/aardvark-unblock":
             ip = quart.request.query_string
-            theiruid = quart.request.headers.get('X-Aardvark-Key', '')
+            theiruid = quart.request.headers.get("X-Aardvark-Key", "")
             if theiruid == self.myuid:
                 if ip in self.offenders:
                     self.offenders.remove(ip)
@@ -350,21 +353,22 @@ class Aardvark:
                     del req_headers["content-type"]
                 for k, v in post_dict.items():
                     if isinstance(v, aiohttp.web.FileField):  # This sets multipart properly in the request
-                        form_data.add_field(name=v.name, filename=v.filename, value=v.file.raw,
-                                            content_type=v.content_type)
+                        form_data.add_field(
+                            name=v.name, filename=v.filename, value=v.file.raw, content_type=v.content_type
+                        )
                     else:
                         form_data.add_field(name=k, value=v)
 
             # Send the request with a timeout (we may not want a timeout for the reponse, so we wrap it here instead)
             async with async_timeout.timeout(DEFAULT_READ_TIMEOUT):
                 result: aiohttp.ClientResponse = await session.request(
-                        quart.request.method,
-                        target_url,
-                        headers=req_headers,
-                        timeout=0,
-                        params=get_data,
-                        data=form_data or post_data,
-                        allow_redirects=False,
+                    quart.request.method,
+                    target_url,
+                    headers=req_headers,
+                    timeout=0,
+                    params=get_data,
+                    data=form_data or post_data,
+                    allow_redirects=False,
                 )
 
             headers = {a: b for a, b in result.headers.items()}
@@ -373,7 +377,7 @@ class Aardvark:
             self.processing_times.append(time.time() - now)
 
             # Standard response
-            if 'content-length' in result.headers:
+            if "content-length" in result.headers:
                 raw = await result.read()
                 response = quart.Response(response=raw, status=result.status, headers=headers)
                 await result.wait_for_close()
